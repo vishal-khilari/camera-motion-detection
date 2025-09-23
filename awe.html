@@ -1,0 +1,444 @@
+<!-- <!doctype html> -->
+<!-- <html lang="en"> -->
+<!--  -->
+<!-- <head> -->
+<!-- <meta charset="utf-8" /> -->
+<!-- <meta name="viewport" content="width=device-width,initial-scale=1" /> -->
+<!-- <title>ViperNet — Camera Capture</title> -->
+<!-- <style> -->
+/* :root { */
+/* --bg: #0f1724; */
+deep navy
+/* --card: #0b1220; */
+/* --accent: #1fb6ff; */
+/* --accent-2: #7c3aed; */
+/* --glass: rgba(255, 255, 255, 0.05); */
+/* --muted: rgba(255, 255, 255, 0.65); */
+/* color-scheme: dark; */
+/* } */
+/* */
+/* * { */
+/* box-sizing: border-box */
+/* } */
+/* */
+/* body { */
+/* margin: 0; */
+/* font-family: Inter, ui-sans-serif, system-ui, Arial; */
+/* background: linear-gradient(180deg, #071025 0%, var(--bg) 100%); */
+/* color: #e6eef8; */
+/* min-height: 100vh; */
+/* display: flex; */
+/* align-items: center; */
+/* justify-content: center; */
+/* padding: 28px */
+/* } */
+/* */
+/* .app { */
+/* width: 100%; */
+/* max-width: 980px; */
+/* border-radius: 14px; */
+/* background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)); */
+/* box-shadow: 0 10px 30px rgba(2, 6, 23, 0.7); */
+/* overflow: hidden; */
+/* display: grid; */
+/* grid-template-columns: 1fr 360px; */
+/* gap: 20px; */
+/* padding: 20px; */
+/* } */
+/* */
+/* header { */
+/* grid-column: 1/-1; */
+/* display: flex; */
+/* align-items: center; */
+/* gap: 14px */
+/* } */
+/* */
+/* .logo { */
+/* width: 54px; */
+/* height: 54px; */
+/* border-radius: 10px; */
+/* display: flex; */
+/* align-items: center; */
+/* justify-content: center; */
+/* background: linear-gradient(135deg, var(--accent), var(--accent-2)); */
+/* font-weight: 700; */
+/* box-shadow: 0 6px 18px rgba(31, 182, 255, 0.12) */
+/* } */
+/* */
+/* .title { */
+/* font-size: 18px; */
+/* font-weight: 700 */
+/* } */
+/* */
+/* .subtitle { */
+/* font-size: 12px; */
+/* color: var(--muted) */
+/* } */
+/* */
+/* .viewer { */
+/* background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)); */
+/* border-radius: 12px; */
+/* padding: 12px; */
+/* display: flex; */
+/* flex-direction: column; */
+/* align-items: center; */
+/* gap: 10px */
+/* } */
+/* */
+/* video { */
+/* width: 100%; */
+/* height: 100%; */
+/* max-height: 520px; */
+/* border-radius: 8px; */
+/* background: #000; */
+/* object-fit: cover; */
+/* display: block */
+/* } */
+/* */
+/* .overlay { */
+/* position: relative; */
+/* width: 100% */
+/* } */
+/* */
+/* .crosshair { */
+/* position: absolute; */
+/* left: 50%; */
+/* top: 50%; */
+/* transform: translate(-50%, -50%); */
+/* pointer-events: none; */
+/* width: 80%; */
+/* height: 80%; */
+/* mix-blend-mode: screen */
+/* } */
+/* */
+/* .controls { */
+/* display: flex; */
+/* gap: 8px; */
+/* flex-wrap: wrap; */
+/* justify-content: center */
+/* } */
+/* */
+/* .btn { */
+/* background: var(--glass); */
+/* border: 1px solid rgba(255, 255, 255, 0.04); */
+/* padding: 10px 14px; */
+/* border-radius: 10px; */
+/* color: var(--muted); */
+/* cursor: pointer; */
+/* font-weight: 600 */
+/* } */
+/* */
+/* .btn.primary { */
+/* background: linear-gradient(90deg, var(--accent), var(--accent-2)); */
+/* color: #061022 */
+/* } */
+/* */
+/* .btn.ghost { */
+/* background: transparent */
+/* } */
+/* */
+/* .right { */
+/* display: flex; */
+/* flex-direction: column; */
+/* gap: 12px */
+/* } */
+/* */
+/* .card { */
+/* background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01)); */
+/* border-radius: 12px; */
+/* padding: 12px */
+/* } */
+/* */
+/* .thumb { */
+/* width: 100%; */
+/* border-radius: 8px; */
+/* height: 200px; */
+/* object-fit: cover; */
+/* background: linear-gradient(90deg, #061021, #07172a); */
+/* display: block */
+/* } */
+/* */
+/* label { */
+/* font-size: 12px; */
+/* color: var(--muted); */
+/* display: block; */
+/* margin-bottom: 6px */
+/* } */
+/* */
+/* select, */
+/* input[type="range"] { */
+/* width: 100%; */
+/* padding: 8px; */
+/* border-radius: 8px; */
+/* border: 1px solid rgba(255, 255, 255, 0.04); */
+/* background: transparent; */
+/* color: inherit */
+/* } */
+/* */
+/* .meta { */
+/* font-size: 12px; */
+/* color: var(--muted); */
+/* display: flex; */
+/* justify-content: space-between; */
+/* gap: 8px */
+/* } */
+/* */
+/* footer { */
+/* grid-column: 1/-1; */
+/* text-align: center; */
+/* margin-top: 6px; */
+/* color: var(--muted); */
+/* font-size: 12px */
+/* } */
+/* */
+/* @media(max-width:880px) { */
+/* .app { */
+/* grid-template-columns: 1fr; */
+/* } */
+/* */
+/* .right { */
+/* order: 2 */
+/* } */
+/* } */
+/* </style> */
+<!-- </head> -->
+<!--  -->
+<!-- <body> -->
+<!-- <main class="app" aria-labelledby="appTitle"> -->
+<!-- <header> -->
+<!-- <div class="logo" aria-hidden>VN</div> -->
+<!-- <div> -->
+<!-- <div id="appTitle" class="title">ViperNet — Camera Capture</div> -->
+<!-- <div class="subtitle">Capture, preview and securely send images to ViperNet</div> -->
+<!-- </div> -->
+<!-- </header> -->
+<!--  -->
+<!-- <section class="viewer card"> -->
+<!-- <div class="overlay" style="width:100%"> -->
+<!-- <video id="video" playsinline autoplay></video> -->
+simple crosshair SVG overlay
+<!-- <svg class="crosshair" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden> -->
+<!-- <rect x="0" y="48.5" width="100" height="1" fill="rgba(255,255,255,0.06)" /> -->
+<!-- <rect x="48.5" y="0" width="1" height="100" fill="rgba(255,255,255,0.06)" /> -->
+<!-- </svg> -->
+<!-- </div> -->
+<!--  -->
+<!-- <div class="controls"> -->
+<!-- <button class="btn" id="switch">🔁 Switch Camera</button> -->
+<!-- <button class="btn" id="countdown">⏱ 3s</button> -->
+<!-- <button class="btn primary" id="capture">📸 Capture</button> -->
+<!-- <button class="btn" id="retake">↺ Retake</button> -->
+<!-- <button class="btn" id="download">⬇️ Download</button> -->
+<!-- <button class="btn primary" id="send">📤 Send</button> -->
+<!-- </div> -->
+<!--  -->
+<!-- <p id="status" class="meta" style="margin-top:6px">Status: <span id="statustxt">Initializing camera…</span> -->
+<!-- </p> -->
+<!-- </section> -->
+<!--  -->
+<!-- <aside class="right"> -->
+<!-- <div class="card"> -->
+<!-- <label for="devices">Camera device</label> -->
+<!-- <select id="devices" aria-label="Choose camera"></select> -->
+<!-- </div> -->
+<!--  -->
+<!-- <div class="card"> -->
+<!-- <label for="quality">Resolution</label> -->
+<!-- <select id="quality"> -->
+<!-- <option value="high">High (prefer max)</option> -->
+<!-- <option value="medium">Medium (1280×720)</option> -->
+<!-- <option value="low">Low (640×480)</option> -->
+<!-- </select> -->
+<!-- </div> -->
+<!--  -->
+<!-- <div class="card"> -->
+<!-- <label>Preview</label> -->
+<!-- <img id="thumb" class="thumb" alt="captured preview" /> -->
+<!-- <div style="margin-top:8px" class="meta"> -->
+<!-- <span id="capturedAt">—</span> -->
+<!-- <span id="resolution">—</span> -->
+<!-- </div> -->
+<!-- </div> -->
+<!--  -->
+<!-- <div class="card"> -->
+<!-- <label>Webhook (destination)</label> -->
+<!-- <input id="webhook" type="text" -->
+<!-- value="https://n8n-s73k.onrender.com/webhook/e9906a79-6298-4bf6-a370-4bdbac13b9e6" /> -->
+<!-- <small style="display:block;margin-top:6px;color:var(--muted)">Images are sent as <code>file</code> plus -->
+<!-- small JSON metadata fields.</small> -->
+<!-- </div> -->
+<!-- </aside> -->
+<!--  -->
+<!-- <footer>Keyboard: [C]apture • [S]end • [R]etake • [D]ownload</footer> -->
+<!-- </main> -->
+<!--  -->
+<!-- <canvas id="canvas" style="display:none"></canvas> -->
+<!--  -->
+<!-- <script> -->
+elements
+// const video = document.getElementById('video');
+// const devicesSelect = document.getElementById('devices');
+// const qualitySelect = document.getElementById('quality');
+// const captureBtn = document.getElementById('capture');
+// const switchBtn = document.getElementById('switch');
+// const retakeBtn = document.getElementById('retake');
+// const sendBtn = document.getElementById('send');
+// const downloadBtn = document.getElementById('download');
+// const countdownBtn = document.getElementById('countdown');
+// const statusText = document.getElementById('statustxt');
+// const thumb = document.getElementById('thumb');
+// const canvas = document.getElementById('canvas');
+// const webhookInput = document.getElementById('webhook');
+// const capturedAt = document.getElementById('capturedAt');
+// const resolutionLabel = document.getElementById('resolution');
+//
+// let stream = null;
+// let currentDeviceId = null;
+// let capturedBlob = null;
+//
+// function logStatus(txt) { statusText.innerText = txt }
+//
+list devices
+// async function listDevices() {
+// try {
+// const devices = await navigator.mediaDevices.enumerateDevices();
+// const cams = devices.filter(d => d.kind === 'videoinput');
+// devicesSelect.innerHTML = '';
+// cams.forEach((c, i) => {
+// const opt = document.createElement('option');
+// opt.value = c.deviceId;
+// opt.text = c.label || `Camera ${i + 1}`;
+// devicesSelect.appendChild(opt);
+// });
+// if (cams.length) currentDeviceId = cams[0].deviceId;
+// } catch (e) { console.warn(e); }
+// }
+//
+// async function startStream(deviceId) {
+// if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null }
+// const quality = qualitySelect.value;
+// let constraints = { audio: false, video: {} };
+// if (deviceId) constraints.video.deviceId = { exact: deviceId };
+// if (quality === 'high') constraints.video.width = { ideal: 1920 }, constraints.video.height = { ideal: 1080 };
+// if (quality === 'medium') constraints.video.width = { exact: 1280 }, constraints.video.height = { exact: 720 };
+// if (quality === 'low') constraints.video.width = { exact: 640 }, constraints.video.height = { exact: 480 };
+//
+// try {
+// stream = await navigator.mediaDevices.getUserMedia(constraints);
+// video.srcObject = stream;
+// const track = stream.getVideoTracks()[0];
+// const settings = track.getSettings();
+// resolutionLabel.innerText = `${settings.width || 'auto'} × ${settings.height || 'auto'}`;
+// logStatus('Camera ready');
+// await listDevices();
+// } catch (err) {
+// console.error(err);
+// logStatus('Camera unavailable: ' + (err.message || err));
+// }
+// }
+//
+capture
+// function captureImage() {
+// if (!stream) return logStatus('No camera stream');
+// const vw = video.videoWidth; const vh = video.videoHeight;
+// canvas.width = vw; canvas.height = vh;
+// const ctx = canvas.getContext('2d');
+// ctx.drawImage(video, 0, 0, vw, vh);
+add subtle timestamp in corner
+// ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(8, vh - 36, 220, 28);
+// ctx.fillStyle = 'white'; ctx.font = '16px sans-serif'; ctx.fillText(new Date().toLocaleString(), 14, vh - 16);
+// canvas.toBlob(blob => {
+// capturedBlob = blob;
+// const url = URL.createObjectURL(blob);
+// thumb.src = url;
+// capturedAt.innerText = new Date().toLocaleString();
+// logStatus('Photo captured ✅');
+// }, 'image/png');
+// }
+//
+download
+// function downloadImage() {
+// if (!capturedBlob) return logStatus('Nothing to download');
+// const a = document.createElement('a');
+// a.href = URL.createObjectURL(capturedBlob);
+// a.download = `viper-image-${Date.now()}.png`;
+// document.body.appendChild(a); a.click(); a.remove();
+// logStatus('Download started');
+// }
+//
+send
+// async function sendImage() {
+// if (!capturedBlob) return logStatus('Capture an image before sending');
+// const webhook = webhookInput.value.trim();
+// if (!webhook) return logStatus('Webhook required');
+//
+// const form = new FormData();
+// form.append('file', capturedBlob, 'image.png');
+small metadata
+// form.append('metadata', JSON.stringify({
+// capturedAt: new Date().toISOString(),
+// resolution: resolutionLabel.innerText,
+// deviceId: devicesSelect.value || null,
+// project: 'ViperNet'
+// }));
+//
+// logStatus('Sending image...');
+// try {
+// const res = await fetch(webhook, { method: 'POST', body: form });
+// if (res.ok) { logStatus('Sent successfully 🎉'); }
+// else { logStatus('Send failed: ' + res.status); }
+// } catch (e) { console.error(e); logStatus('Error sending: ' + e.message); }
+// }
+//
+UI wiring
+// captureBtn.addEventListener('click', captureImage);
+// downloadBtn.addEventListener('click', downloadImage);
+// sendBtn.addEventListener('click', sendImage);
+// retakeBtn.addEventListener('click', () => { capturedBlob = null; thumb.src = ''; capturedAt.innerText = '—';
+logStatus('Ready to capture'); });
+//
+// devicesSelect.addEventListener('change', (e) => { currentDeviceId = e.target.value; startStream(currentDeviceId); });
+// qualitySelect.addEventListener('change', () => startStream(currentDeviceId));
+//
+// switchBtn.addEventListener('click', async () => {
+pick next camera
+// const opts = Array.from(devicesSelect.options);
+// if (!opts.length) return;
+// const idx = opts.findIndex(o => o.value === devicesSelect.value);
+// const next = (idx + 1) % opts.length;
+// devicesSelect.selectedIndex = next; currentDeviceId = opts[next].value; startStream(currentDeviceId);
+// });
+//
+simple countdown toggle
+// countdownBtn.addEventListener('click', () => {
+// const t = 3; // 3 seconds
+// countdownBtn.disabled = true; let i = t;
+// const orig = captureBtn.className;
+// logStatus('Countdown: ' + i);
+// const tick = setInterval(() => {
+// i--; if (i > 0) { logStatus('Countdown: ' + i); }
+// else { clearInterval(tick); captureImage(); countdownBtn.disabled = false; }
+// }, 1000);
+// });
+//
+keyboard shortcuts
+// window.addEventListener('keydown', (e) => {
+// if (e.key === 'c' || e.key === 'C') captureImage();
+// if (e.key === 's' || e.key === 'S') sendImage();
+// if (e.key === 'r' || e.key === 'R') { capturedBlob = null; thumb.src = ''; capturedAt.innerText = '—';
+logStatus('Ready to capture'); }
+// if (e.key === 'd' || e.key === 'D') downloadImage();
+// });
+//
+initial boot
+// (async function init() {
+// if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+// logStatus('Camera API not supported in this browser'); return;
+// }
+// await listDevices();
+// await startStream(currentDeviceId);
+// })();
+// </script>
+<!-- </body> -->
+<!--  -->
+<!-- </html> -->
