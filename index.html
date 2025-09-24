@@ -145,13 +145,21 @@
         }
 
         select,
-        input[type="range"] {
+        input[type="range"],
+        input[type="text"] {
             width: 100%;
             padding: 8px;
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.04);
-            background: transparent;
-            color: inherit
+            background: var(--glass);
+            color: inherit;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(31, 182, 255, 0.2);
         }
 
         .meta {
@@ -171,12 +179,61 @@
         }
 
         @media(max-width:880px) {
+            body {
+                padding: 10px;
+                align-items: flex-start;
+            }
+
             .app {
                 grid-template-columns: 1fr;
+                gap: 15px;
+                padding: 15px;
+                max-width: 100%;
+            }
+
+            .viewer {
+                order: 1;
             }
 
             .right {
-                order: 2
+                order: 2;
+            }
+
+            video {
+                max-height: 60vh;
+            }
+
+            .controls {
+                gap: 6px;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 14px;
+                flex: 1;
+                min-width: 0;
+                text-align: center;
+            }
+
+            .controls .btn:nth-child(1),
+            .controls .btn:nth-child(2),
+            .controls .btn:nth-child(3) {
+                flex-basis: calc(33.333% - 4px);
+            }
+
+            .controls .btn:nth-child(4),
+            .controls .btn:nth-child(5) {
+                flex-basis: calc(50% - 3px);
+            }
+
+            .controls .btn:nth-child(6),
+            .controls .btn:nth-child(7),
+            .controls .btn:nth-child(8) {
+                flex-basis: calc(33.333% - 4px);
+            }
+
+            footer {
+                display: none;
             }
         }
     </style>
@@ -185,7 +242,7 @@
 <body>
     <main class="app" aria-labelledby="appTitle">
         <header>
-            <div class="logo" aria-hidden>VN</div>
+            <div class="logo" aria-hidden>VK</div>
             <div>
                 <div id="appTitle" class="title">MotionCam — Capture & Detect</div>
                 <div class="subtitle">Capture, preview, send, and detect motion</div>
@@ -234,7 +291,7 @@
             </div>
 
             <div class="card">
-                <label>Webhook</label>
+                <label for="webhook">Webhook</label>
                 <input id="webhook" type="text"
                     value="https://n8n-s73k.onrender.com/webhook/e41afa79-1104-406a-8e7d-aa8f78594d04" />
             </div>
@@ -267,6 +324,7 @@
         let stream = null;
         let currentDeviceId = null;
         let capturedBlob = null;
+        let availableDevices = [];
 
         function logStatus(txt) { statusText.innerText = txt }
 
@@ -274,6 +332,8 @@
         async function listDevices() {
             const devices = await navigator.mediaDevices.enumerateDevices();
             const cams = devices.filter(d => d.kind === 'videoinput');
+            availableDevices = cams;
+
             devicesSelect.innerHTML = '';
             cams.forEach((c, i) => {
                 const opt = document.createElement('option');
@@ -281,24 +341,68 @@
                 opt.text = c.label || `Camera ${i + 1}`;
                 devicesSelect.appendChild(opt);
             });
-            if (cams.length) currentDeviceId = cams[0].deviceId;
+
+            // Set the first camera as default if no current device
+            if (cams.length && !currentDeviceId) {
+                currentDeviceId = cams[0].deviceId;
+            }
+
+            // Update the select to show the currently active device
+            if (currentDeviceId) {
+                devicesSelect.value = currentDeviceId;
+            }
         }
 
         async function startStream(deviceId) {
-            if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null }
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+                stream = null;
+            }
+
             const quality = qualitySelect.value;
             let constraints = { audio: false, video: {} };
-            if (deviceId) constraints.video.deviceId = { exact: deviceId };
-            if (quality === 'high') { constraints.video.width = { ideal: 1920 }; constraints.video.height = { ideal: 1080 }; }
-            if (quality === 'medium') { constraints.video.width = { exact: 1280 }; constraints.video.height = { exact: 720 }; }
-            if (quality === 'low') { constraints.video.width = { exact: 640 }; constraints.video.height = { exact: 480 }; }
 
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = stream;
-            const settings = stream.getVideoTracks()[0].getSettings();
-            resolutionLabel.innerText = `${settings.width} × ${settings.height}`;
-            logStatus('Camera ready');
-            await listDevices();
+            if (deviceId) {
+                constraints.video.deviceId = { exact: deviceId };
+            }
+
+            if (quality === 'high') {
+                constraints.video.width = { ideal: 1920 };
+                constraints.video.height = { ideal: 1080 };
+            }
+            if (quality === 'medium') {
+                constraints.video.width = { exact: 1280 };
+                constraints.video.height = { exact: 720 };
+            }
+            if (quality === 'low') {
+                constraints.video.width = { exact: 640 };
+                constraints.video.height = { exact: 480 };
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+
+                // Update currentDeviceId to match the actual device being used
+                const track = stream.getVideoTracks()[0];
+                const settings = track.getSettings();
+
+                if (settings.deviceId) {
+                    currentDeviceId = settings.deviceId;
+                    // Update the dropdown to show the correct selection
+                    devicesSelect.value = currentDeviceId;
+                }
+
+                resolutionLabel.innerText = `${settings.width} × ${settings.height}`;
+                logStatus('Camera ready');
+
+                // Refresh device list to get updated labels
+                await listDevices();
+
+            } catch (error) {
+                logStatus('Camera error: ' + error.message);
+                console.error('Camera error:', error);
+            }
         }
 
         // capture
@@ -324,19 +428,27 @@
             form.append('metadata', JSON.stringify({
                 capturedAt: new Date().toISOString(),
                 resolution: resolutionLabel.innerText,
-                deviceId: devicesSelect.value
+                deviceId: currentDeviceId
             }));
-            const res = await fetch(webhookInput.value, { method: 'POST', body: form });
-            logStatus(res.ok ? 'Sent ✅' : 'Send failed ' + res.status);
+            try {
+                const res = await fetch(webhookInput.value, { method: 'POST', body: form });
+                logStatus(res.ok ? 'Sent ✅' : 'Send failed ' + res.status);
+            } catch (error) {
+                logStatus('Send error: ' + error.message);
+            }
         }
 
-        async function captureThenSend() { captureImage(); setTimeout(sendImage, 500); }
+        async function captureThenSend() {
+            captureImage();
+            setTimeout(sendImage, 500);
+        }
 
         function downloadImage() {
             if (!capturedBlob) return logStatus('Nothing to download');
             const a = document.createElement('a');
             a.href = URL.createObjectURL(capturedBlob);
-            a.download = `viper-${Date.now()}.png`; a.click();
+            a.download = `motioncam-${Date.now()}.png`;
+            a.click();
         }
 
         // motion detection
@@ -373,7 +485,10 @@
         function toggleMotion() {
             motionEnabled = !motionEnabled;
             logStatus(motionEnabled ? 'Motion ON 👀' : 'Motion OFF ⛔');
-            if (motionEnabled) { lastFrame = null; detectMotion(); }
+            if (motionEnabled) {
+                lastFrame = null;
+                detectMotion();
+            }
         }
 
         // events
@@ -381,36 +496,75 @@
         captureSendBtn.onclick = captureThenSend;
         downloadBtn.onclick = downloadImage;
         sendBtn.onclick = sendImage;
-        retakeBtn.onclick = () => { capturedBlob = null; thumb.src = ''; capturedAt.innerText = '—'; logStatus('Ready'); };
-        devicesSelect.onchange = e => { currentDeviceId = e.target.value; startStream(currentDeviceId); };
+        retakeBtn.onclick = () => {
+            capturedBlob = null;
+            thumb.src = '';
+            capturedAt.innerText = '—';
+            logStatus('Ready');
+        };
+
+        // Fixed device selection event handler
+        devicesSelect.onchange = e => {
+            const selectedDeviceId = e.target.value;
+            currentDeviceId = selectedDeviceId;
+            startStream(currentDeviceId);
+        };
+
         qualitySelect.onchange = () => startStream(currentDeviceId);
+
+        // Fixed switch button logic
         switchBtn.onclick = () => {
             const opts = [...devicesSelect.options];
-            if (!opts.length) return;
-            const idx = opts.findIndex(o => o.value === devicesSelect.value);
-            const next = (idx + 1) % opts.length;
-            devicesSelect.selectedIndex = next;
-            currentDeviceId = opts[next].value; startStream(currentDeviceId);
+            if (opts.length <= 1) return logStatus('Only one camera available');
+
+            const currentIndex = opts.findIndex(o => o.value === currentDeviceId);
+            const nextIndex = (currentIndex + 1) % opts.length;
+            const nextDeviceId = opts[nextIndex].value;
+
+            currentDeviceId = nextDeviceId;
+            devicesSelect.value = currentDeviceId;
+            startStream(currentDeviceId);
         };
+
         countdownBtn.onclick = () => {
-            let i = 3; countdownBtn.disabled = true;
+            let i = 3;
+            countdownBtn.disabled = true;
             const t = setInterval(() => {
                 if (--i > 0) logStatus('Countdown ' + i);
-                else { clearInterval(t); captureImage(); countdownBtn.disabled = false; }
+                else {
+                    clearInterval(t);
+                    captureImage();
+                    countdownBtn.disabled = false;
+                }
             }, 1000);
         };
+
         motionBtn.onclick = toggleMotion;
 
         window.onkeydown = e => {
             if (e.key === 'c' || e.key === 'C') captureImage();
             if (e.key === 's' || e.key === 'S') sendImage();
             if (e.key === 'x' || e.key === 'X') captureThenSend();
-            if (e.key === 'r' || e.key === 'R') { capturedBlob = null; thumb.src = ''; capturedAt.innerText = '—'; }
+            if (e.key === 'r' || e.key === 'R') {
+                capturedBlob = null;
+                thumb.src = '';
+                capturedAt.innerText = '—';
+                logStatus('Ready');
+            }
             if (e.key === 'd' || e.key === 'D') downloadImage();
             if (e.key === 't' || e.key === 'T') toggleMotion();
         };
 
-        (async () => { await listDevices(); await startStream(currentDeviceId); })();
+        // Initialize the application
+        (async () => {
+            try {
+                await listDevices();
+                await startStream(currentDeviceId);
+            } catch (error) {
+                logStatus('Initialization error: ' + error.message);
+                console.error('Initialization error:', error);
+            }
+        })();
     </script>
 </body>
 
