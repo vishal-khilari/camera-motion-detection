@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ViperNet — Motion Video Detection</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f1724;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .app {
+            max-width: 900px;
+            width: 100%;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        video {
+            width: 100%;
+            max-height: 480px;
+            background: black;
+            border-radius: 10px;
+        }
+
+        .controls {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .primary {
+            background: linear-gradient(90deg, #1fb6ff, #7c3aed);
+            color: #061022;
+        }
+
+        #status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <h2>🐍 ViperNet — Motion Video Detection</h2>
+        <video id="video" autoplay playsinline muted></video>
+        <div class="controls">
+            <button id="toggleMotion" class="primary">🎥 Toggle Motion</button>
+            <button id="download">⬇️ Download Last Video</button>
+        </div>
+        <div id="status">Status: Initializing camera…</div>
+        <canvas id="canvas" style="display:none"></canvas>
+    </div>
+
+    <script>
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const statusEl = document.getElementById("status");
+        const motionBtn = document.getElementById("toggleMotion");
+        const downloadBtn = document.getElementById("download");
+
+        let stream, motionEnabled = false, lastFrame = null;
+        let motionCooldown = false, recordedChunks = [];
+        let mediaRecorder = null, lastVideoBlob = null;
+
+        const WEBHOOK_URL = "https://n8n-s73k.onrender.com/webhook/e41afa79-1104-406a-8e7d-aa8f78594d04";
+
+        function logStatus(msg) {
+            statusEl.innerText = "Status: " + msg;
+        }
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    logStatus("Camera ready ✅");
+                };
+            } catch (err) {
+                logStatus("Camera error: " + err.message);
+            }
+        }
+
+        function startRecording() {
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+            mediaRecorder.ondataavailable = e => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+            mediaRecorder.onstop = async () => {
+                lastVideoBlob = new Blob(recordedChunks, { type: "video/webm" });
+                logStatus("Video recorded 🎬, sending...");
+                await sendVideo(lastVideoBlob);
+            };
+            mediaRecorder.start();
+            logStatus("Recording started...");
+            setTimeout(() => {
+                mediaRecorder.stop();
+                logStatus("Recording stopped.");
+            }, 5000); // record 5 sec
+        }
+
+        async function sendVideo(blob) {
+            const form = new FormData();
+            form.append("file", blob, "motion-video.webm");
+            form.append("metadata", JSON.stringify({ capturedAt: new Date().toISOString() }));
+            try {
+                const res = await fetch(WEBHOOK_URL, { method: "POST", body: form });
+                logStatus(res.ok ? "Video sent ✅" : "Send failed ❌ " + res.status);
+            } catch (err) {
+                logStatus("Send error: " + err.message);
+            }
+        }
+
+        function detectMotion() {
+            if (!motionEnabled || !stream) return;
+            const vw = video.videoWidth, vh = video.videoHeight;
+            if (!vw || !vh) return;
+            const ctx = canvas.getContext("2d");
+            canvas.width = vw; canvas.height = vh;
+            ctx.drawImage(video, 0, 0, vw, vh);
+            const frame = ctx.getImageData(0, 0, vw, vh);
+
+            if (lastFrame) {
+                let diff = 0;
+                for (let i = 0; i < frame.data.length; i += 80) {
+                    const d = Math.abs(frame.data[i] - lastFrame.data[i]) +
+                        Math.abs(frame.data[i + 1] - lastFrame.data[i + 1]) +
+                        Math.abs(frame.data[i + 2] - lastFrame.data[i + 2]);
+                    if (d > 60) diff++;
+                }
+                if (diff > 2000 && !motionCooldown) {
+                    logStatus("Motion detected 🚨");
+                    startRecording();
+                    motionCooldown = true;
+                    setTimeout(() => motionCooldown = false, 8000);
+                }
+            }
+            lastFrame = frame;
+            requestAnimationFrame(detectMotion);
+        }
+
+        motionBtn.onclick = () => {
+            motionEnabled = !motionEnabled;
+            if (motionEnabled) {
+                logStatus("Motion detection ON 👀");
+                detectMotion();
+            } else {
+                logStatus("Motion detection OFF ⛔");
+            }
+        };
+
+        downloadBtn.onclick = () => {
+            if (!lastVideoBlob) return logStatus("No video available");
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(lastVideoBlob);
+            a.download = "viper-motion.webm";
+            a.click();
+        };
+
+        startCamera();
+    </script>
+</body>
+
+</html>

@@ -1,13 +1,15 @@
+<!-- HTML1 -->
 <!doctype html>
 <html lang="en">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>ViperNet — Camera + Motion Detection</title>
+    <title>ViperNet — Camera Capture</title>
     <style>
         :root {
             --bg: #0f1724;
+            /* deep navy */
             --card: #0b1220;
             --accent: #1fb6ff;
             --accent-2: #7c3aed;
@@ -94,6 +96,22 @@
             display: block
         }
 
+        .overlay {
+            position: relative;
+            width: 100%
+        }
+
+        .crosshair {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            width: 80%;
+            height: 80%;
+            mix-blend-mode: screen
+        }
+
         .controls {
             display: flex;
             gap: 8px;
@@ -114,6 +132,10 @@
         .btn.primary {
             background: linear-gradient(90deg, var(--accent), var(--accent-2));
             color: #061022
+        }
+
+        .btn.ghost {
+            background: transparent
         }
 
         .right {
@@ -187,26 +209,33 @@
         <header>
             <div class="logo" aria-hidden>VN</div>
             <div>
-                <div id="appTitle" class="title">ViperNet — Camera + Motion Detection</div>
-                <div class="subtitle">Capture, preview, send, and detect motion</div>
+                <div id="appTitle" class="title">ViperNet — Camera Capture</div>
+                <div class="subtitle">Capture, preview and securely send images to ViperNet</div>
             </div>
         </header>
 
         <section class="viewer card">
-            <video id="video" playsinline autoplay></video>
+            <div class="overlay" style="width:100%">
+                <video id="video" playsinline autoplay></video>
+                <!-- simple crosshair SVG overlay -->
+                <svg class="crosshair" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                    <rect x="0" y="48.5" width="100" height="1" fill="rgba(255,255,255,0.06)" />
+                    <rect x="48.5" y="0" width="1" height="100" fill="rgba(255,255,255,0.06)" />
+                </svg>
+            </div>
 
             <div class="controls">
-                <button class="btn" id="switch">🔁 Switch</button>
+                <button class="btn" id="switch">🔁 Switch Camera</button>
                 <button class="btn" id="countdown">⏱ 3s</button>
                 <button class="btn primary" id="capture">📸 Capture</button>
                 <button class="btn primary" id="captureSend">📡 Capture & Send</button>
                 <button class="btn" id="retake">↺ Retake</button>
                 <button class="btn" id="download">⬇️ Download</button>
                 <button class="btn primary" id="send">📤 Send</button>
-                <button class="btn primary" id="motion">🎥 Toggle Motion</button>
             </div>
 
-            <p id="status" class="meta">Status: <span id="statustxt">Initializing camera…</span></p>
+            <p id="status" class="meta" style="margin-top:6px">Status: <span id="statustxt">Initializing camera…</span>
+            </p>
         </section>
 
         <aside class="right">
@@ -234,18 +263,21 @@
             </div>
 
             <div class="card">
-                <label>Webhook</label>
+                <label>Webhook (destination)</label>
                 <input id="webhook" type="text"
                     value="https://n8n-s73k.onrender.com/webhook/e41afa79-1104-406a-8e7d-aa8f78594d04" />
+                <small style="display:block;margin-top:6px;color:var(--muted)">Images are sent as <code>file</code> plus
+                    small JSON metadata fields.</small>
             </div>
         </aside>
 
-        <footer>Keyboard: [C]apture • [S]end • [R]etake • [D]ownload • [X]Capture & Send • [T]oggle Motion</footer>
+        <footer>Keyboard: [C]apture • [S]end • [R]etake • [D]ownload • [X]Capture & Send</footer>
     </main>
 
     <canvas id="canvas" style="display:none"></canvas>
 
     <script>
+        // elements
         const video = document.getElementById('video');
         const devicesSelect = document.getElementById('devices');
         const qualitySelect = document.getElementById('quality');
@@ -256,7 +288,6 @@
         const sendBtn = document.getElementById('send');
         const downloadBtn = document.getElementById('download');
         const countdownBtn = document.getElementById('countdown');
-        const motionBtn = document.getElementById('motion');
         const statusText = document.getElementById('statustxt');
         const thumb = document.getElementById('thumb');
         const canvas = document.getElementById('canvas');
@@ -270,18 +301,20 @@
 
         function logStatus(txt) { statusText.innerText = txt }
 
-        // device handling
+        // list devices
         async function listDevices() {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const cams = devices.filter(d => d.kind === 'videoinput');
-            devicesSelect.innerHTML = '';
-            cams.forEach((c, i) => {
-                const opt = document.createElement('option');
-                opt.value = c.deviceId;
-                opt.text = c.label || `Camera ${i + 1}`;
-                devicesSelect.appendChild(opt);
-            });
-            if (cams.length) currentDeviceId = cams[0].deviceId;
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cams = devices.filter(d => d.kind === 'videoinput');
+                devicesSelect.innerHTML = '';
+                cams.forEach((c, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = c.deviceId;
+                    opt.text = c.label || `Camera ${i + 1}`;
+                    devicesSelect.appendChild(opt);
+                });
+                if (cams.length) currentDeviceId = cams[0].deviceId;
+            } catch (e) { console.warn(e); }
         }
 
         async function startStream(deviceId) {
@@ -289,16 +322,22 @@
             const quality = qualitySelect.value;
             let constraints = { audio: false, video: {} };
             if (deviceId) constraints.video.deviceId = { exact: deviceId };
-            if (quality === 'high') { constraints.video.width = { ideal: 1920 }; constraints.video.height = { ideal: 1080 }; }
-            if (quality === 'medium') { constraints.video.width = { exact: 1280 }; constraints.video.height = { exact: 720 }; }
-            if (quality === 'low') { constraints.video.width = { exact: 640 }; constraints.video.height = { exact: 480 }; }
+            if (quality === 'high') constraints.video.width = { ideal: 1920 }, constraints.video.height = { ideal: 1080 };
+            if (quality === 'medium') constraints.video.width = { exact: 1280 }, constraints.video.height = { exact: 720 };
+            if (quality === 'low') constraints.video.width = { exact: 640 }, constraints.video.height = { exact: 480 };
 
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = stream;
-            const settings = stream.getVideoTracks()[0].getSettings();
-            resolutionLabel.innerText = `${settings.width} × ${settings.height}`;
-            logStatus('Camera ready');
-            await listDevices();
+            try {
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                const track = stream.getVideoTracks()[0];
+                const settings = track.getSettings();
+                resolutionLabel.innerText = `${settings.width || 'auto'} × ${settings.height || 'auto'}`;
+                logStatus('Camera ready');
+                await listDevices();
+            } catch (err) {
+                console.error(err);
+                logStatus('Camera unavailable: ' + (err.message || err));
+            }
         }
 
         // capture
@@ -308,109 +347,127 @@
             canvas.width = vw; canvas.height = vh;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, vw, vh);
+            // add subtle timestamp in corner
+            ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(8, vh - 36, 220, 28);
+            ctx.fillStyle = 'white'; ctx.font = '16px sans-serif'; ctx.fillText(new Date().toLocaleString(), 14, vh - 16);
             canvas.toBlob(blob => {
                 capturedBlob = blob;
-                thumb.src = URL.createObjectURL(blob);
+                const url = URL.createObjectURL(blob);
+                thumb.src = url;
                 capturedAt.innerText = new Date().toLocaleString();
-                logStatus('Captured');
+                logStatus('Photo captured ✅');
             }, 'image/png');
         }
 
-        // send
-        async function sendImage() {
-            if (!capturedBlob) return logStatus('Capture first');
-            const form = new FormData();
-            form.append('file', capturedBlob, 'image.png');
-            form.append('metadata', JSON.stringify({
-                capturedAt: new Date().toISOString(),
-                resolution: resolutionLabel.innerText,
-                deviceId: devicesSelect.value
-            }));
-            const res = await fetch(webhookInput.value, { method: 'POST', body: form });
-            logStatus(res.ok ? 'Sent ✅' : 'Send failed ' + res.status);
+        // capture-and-send
+        async function captureThenSend() {
+            if (!stream) return logStatus('No camera stream');
+            const vw = video.videoWidth; const vh = video.videoHeight;
+            canvas.width = vw; canvas.height = vh;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, vw, vh);
+            ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(8, vh - 36, 220, 28);
+            ctx.fillStyle = 'white'; ctx.font = '16px sans-serif'; ctx.fillText(new Date().toLocaleString(), 14, vh - 16);
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) { logStatus('Capture failed'); return; }
+                capturedBlob = blob;
+                thumb.src = URL.createObjectURL(blob);
+                capturedAt.innerText = new Date().toLocaleString();
+                logStatus('Photo captured — sending...');
+                try {
+                    await sendImage();
+                } finally {
+                    logStatus('Capture & send complete');
+                }
+            }, 'image/png');
         }
 
-        async function captureThenSend() { captureImage(); setTimeout(sendImage, 500); }
-
+        // download
         function downloadImage() {
             if (!capturedBlob) return logStatus('Nothing to download');
             const a = document.createElement('a');
             a.href = URL.createObjectURL(capturedBlob);
-            a.download = `viper-${Date.now()}.png`; a.click();
+            a.download = `viper-image-${Date.now()}.png`;
+            document.body.appendChild(a); a.click(); a.remove();
+            logStatus('Download started');
         }
 
-        // motion detection
-        let motionEnabled = false, lastFrame = null, motionCooldown = false;
+        // send
+        async function sendImage() {
+            if (!capturedBlob) return logStatus('Capture an image before sending');
+            const webhook = webhookInput.value.trim();
+            if (!webhook) return logStatus('Webhook required');
 
-        function detectMotion() {
-            if (!motionEnabled || !stream) return;
-            const vw = video.videoWidth, vh = video.videoHeight;
-            if (!vw || !vh) return;
-            const ctx = canvas.getContext('2d');
-            canvas.width = vw; canvas.height = vh;
-            ctx.drawImage(video, 0, 0, vw, vh);
-            const frame = ctx.getImageData(0, 0, vw, vh);
+            const form = new FormData();
+            form.append('file', capturedBlob, 'image.png');
+            // small metadata
+            form.append('metadata', JSON.stringify({
+                capturedAt: new Date().toISOString(),
+                resolution: resolutionLabel.innerText,
+                deviceId: devicesSelect.value || null,
+                project: 'ViperNet'
+            }));
 
-            if (lastFrame) {
-                let diff = 0;
-                for (let i = 0; i < frame.data.length; i += 80) {
-                    const d = Math.abs(frame.data[i] - lastFrame.data[i]) +
-                        Math.abs(frame.data[i + 1] - lastFrame.data[i + 1]) +
-                        Math.abs(frame.data[i + 2] - lastFrame.data[i + 2]);
-                    if (d > 60) diff++;
-                }
-                if (diff > 2000 && !motionCooldown) {
-                    logStatus(`Motion detected (${diff}) 🚨`);
-                    captureThenSend();
-                    motionCooldown = true;
-                    setTimeout(() => motionCooldown = false, 8000);
-                }
-            }
-            lastFrame = frame;
-            requestAnimationFrame(detectMotion);
+            logStatus('Sending image...');
+            try {
+                const res = await fetch(webhook, { method: 'POST', body: form });
+                if (res.ok) { logStatus('Sent successfully 🎉'); }
+                else { logStatus('Send failed: ' + res.status); }
+            } catch (e) { console.error(e); logStatus('Error sending: ' + e.message); }
         }
 
-        function toggleMotion() {
-            motionEnabled = !motionEnabled;
-            logStatus(motionEnabled ? 'Motion ON 👀' : 'Motion OFF ⛔');
-            if (motionEnabled) { lastFrame = null; detectMotion(); }
-        }
+        // UI wiring
+        captureBtn.addEventListener('click', captureImage);
+        captureSendBtn.addEventListener('click', captureThenSend);
+        downloadBtn.addEventListener('click', downloadImage);
+        sendBtn.addEventListener('click', sendImage);
+        retakeBtn.addEventListener('click', () => { capturedBlob = null; thumb.src = ''; capturedAt.innerText = '—'; logStatus('Ready to capture'); });
 
-        // events
-        captureBtn.onclick = captureImage;
-        captureSendBtn.onclick = captureThenSend;
-        downloadBtn.onclick = downloadImage;
-        sendBtn.onclick = sendImage;
-        retakeBtn.onclick = () => { capturedBlob = null; thumb.src = ''; capturedAt.innerText = '—'; logStatus('Ready'); };
-        devicesSelect.onchange = e => { currentDeviceId = e.target.value; startStream(currentDeviceId); };
-        qualitySelect.onchange = () => startStream(currentDeviceId);
-        switchBtn.onclick = () => {
-            const opts = [...devicesSelect.options];
+        devicesSelect.addEventListener('change', (e) => { currentDeviceId = e.target.value; startStream(currentDeviceId); });
+        qualitySelect.addEventListener('change', () => startStream(currentDeviceId));
+
+        switchBtn.addEventListener('click', async () => {
+            const opts = Array.from(devicesSelect.options);
             if (!opts.length) return;
             const idx = opts.findIndex(o => o.value === devicesSelect.value);
             const next = (idx + 1) % opts.length;
-            devicesSelect.selectedIndex = next;
-            currentDeviceId = opts[next].value; startStream(currentDeviceId);
-        };
-        countdownBtn.onclick = () => {
-            let i = 3; countdownBtn.disabled = true;
-            const t = setInterval(() => {
-                if (--i > 0) logStatus('Countdown ' + i);
-                else { clearInterval(t); captureImage(); countdownBtn.disabled = false; }
-            }, 1000);
-        };
-        motionBtn.onclick = toggleMotion;
+            devicesSelect.selectedIndex = next; currentDeviceId = opts[next].value; startStream(currentDeviceId);
+        });
 
-        window.onkeydown = e => {
+        // simple countdown toggle
+        countdownBtn.addEventListener('click', () => {
+            const t = 3;
+            countdownBtn.disabled = true; let i = t;
+            logStatus('Countdown: ' + i);
+            const tick = setInterval(() => {
+                i--; if (i > 0) { logStatus('Countdown: ' + i); }
+                else { clearInterval(tick); captureImage(); countdownBtn.disabled = false; }
+            }, 1000);
+        });
+
+        // keyboard shortcuts
+        window.addEventListener('keydown', (e) => {
             if (e.key === 'c' || e.key === 'C') captureImage();
             if (e.key === 's' || e.key === 'S') sendImage();
-            if (e.key === 'x' || e.key === 'X') captureThenSend();
-            if (e.key === 'r' || e.key === 'R') { capturedBlob = null; thumb.src = ''; capturedAt.innerText = '—'; }
+            if (e.key === 'x' || e.key === 'X') captureThenSend(); // ✅ new hotkey
+            if (e.key === 'r' || e.key === 'R') {
+                capturedBlob = null;
+                thumb.src = '';
+                capturedAt.innerText = '—';
+                logStatus('Ready to capture');
+            }
             if (e.key === 'd' || e.key === 'D') downloadImage();
-            if (e.key === 't' || e.key === 'T') toggleMotion();
-        };
+        });
 
-        (async () => { await listDevices(); await startStream(currentDeviceId); })();
+        // initial boot
+        (async function init() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                logStatus('Camera API not supported in this browser'); return;
+            }
+            await listDevices();
+            await startStream(currentDeviceId);
+        })();
     </script>
 </body>
 
